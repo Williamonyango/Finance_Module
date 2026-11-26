@@ -2,67 +2,16 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { EntityFormModal } from "../components/EntityFormModal";
+import { MetricCard } from "../components/MetricCard";
+import { entityDefinitions } from "../config/entityDefinitions";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
-import {
-  generateUsername,
-  updateGeneratedUsername,
-} from "../services/username";
-
-const config = {
-  parishes: {
-    title: "Parishes",
-    eyebrow: "Platform administration",
-    description: "Manage independent parish environments.",
-    singular: "parish",
-    fields: ["name", "location", "priest", "username", "password", "status"],
-    defaults: {
-      name: "",
-      location: "",
-      priest: "",
-      username: "",
-      password: "",
-      status: "active",
-    },
-  },
-  centres: {
-    title: "Centres",
-    eyebrow: "Parish administration",
-    description: "Manage centres belonging to your parish.",
-    singular: "centre",
-    fields: ["name", "location", "username", "password", "status"],
-    defaults: {
-      name: "",
-      location: "",
-      username: "",
-      password: "",
-      status: "active",
-    },
-  },
-  groups: {
-    title: "Groups",
-    eyebrow: "Centre administration",
-    description: "Manage church groups belonging to your centre.",
-    singular: "group",
-    fields: ["name", "username", "password", "status"],
-    defaults: { name: "", username: "", password: "", status: "active" },
-  },
-  members: {
-    title: "Members",
-    eyebrow: "Group administration",
-    description: "Manage members belonging to your group.",
-    singular: "member",
-    fields: ["name", "phone", "status"],
-    defaults: { name: "", phone: "", status: "active" },
-  },
-};
-
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+import { titleCase } from "../services/formatters";
 
 export function EntityManagementPage({ entity }) {
   const { session } = useSession();
-  const definition = config[entity];
+  const definition = entityDefinitions[entity];
   const { records, create, update, remove } = useRecords(entity);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -169,12 +118,14 @@ export function EntityManagementPage({ entity }) {
         </button>
       </div>
       <section className="metric-grid">
-        <Metric
+        <MetricCard
+          icon={Plus}
           label={`Total ${definition.title.toLowerCase()}`}
           value={records.length}
           detail={`${records.filter((item) => item.status === "active").length} active`}
         />
-        <Metric
+        <MetricCard
+          icon={Plus}
           label="Filtered records"
           value={filtered.length}
           detail="Matching your search"
@@ -282,7 +233,7 @@ export function EntityManagementPage({ entity }) {
         )}
       </section>
       {isFormOpen && (
-        <EntityForm
+        <EntityFormModal
           definition={definition}
           entity={entity}
           form={form}
@@ -292,109 +243,6 @@ export function EntityManagementPage({ entity }) {
           onClose={() => setFormOpen(false)}
         />
       )}
-    </div>
-  );
-}
-
-function Metric({ label, value, detail }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Plus size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>{detail}</p>
-      </div>
-    </article>
-  );
-}
-function EntityForm({
-  definition,
-  entity,
-  form,
-  setForm,
-  editing,
-  onSubmit,
-  onClose,
-}) {
-  const fields = editing
-    ? definition.fields.filter(
-        (field) => !["password", "username"].includes(field),
-      )
-    : definition.fields;
-  const updateField = (field, value) => {
-    const changes = { [field]: value };
-    if (
-      field === "name" &&
-      ["parishes", "centres", "groups"].includes(entity)
-    ) {
-      changes.username = value.trim()
-        ? updateGeneratedUsername(value, form.username)
-        : "";
-    }
-    setForm({ ...form, ...changes });
-  };
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing
-                ? `Edit ${definition.singular}`
-                : `New ${definition.singular}`}
-            </span>
-            <h2>
-              {editing
-                ? `Update ${definition.singular}`
-                : `Create ${definition.singular}`}
-            </h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          {fields.map((field) => (
-            <label key={field}>
-              {field === "username" ? "Generated username" : titleCase(field)}
-              {field === "status" ? (
-                <select
-                  value={form[field]}
-                  onChange={(event) => updateField(field, event.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  {entity === "parishes" && (
-                    <option value="suspended">Suspended</option>
-                  )}
-                </select>
-              ) : (
-                <input
-                  type={field === "password" ? "password" : "text"}
-                  value={form[field]}
-                  readOnly={field === "username"}
-                  onChange={(event) => updateField(field, event.target.value)}
-                />
-              )}
-            </label>
-          ))}
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : `Create ${definition.singular}`}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

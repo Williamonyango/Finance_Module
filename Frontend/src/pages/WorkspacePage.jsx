@@ -1,28 +1,21 @@
 import { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Building2, Plus, Search, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { EntityFormModal } from "../components/EntityFormModal";
+import { MetricCard } from "../components/MetricCard";
+import { PaginationControls } from "../components/PaginationControls";
+import { entityDefinitions } from "../config/entityDefinitions";
 import { useRecords } from "../hooks/useRecords";
 import { useSession } from "../context/SessionContext";
 import { useDashboard } from "../hooks/useDashboard";
-import {
-  generateUsername,
-  updateGeneratedUsername,
-} from "../services/username";
+import { generateUsername } from "../services/username";
 import { getGreeting } from "../services/greeting";
+import { titleCase } from "../services/formatters";
 import { ParishDashboardPage } from "./ParishDashboardPage";
 import { CentreDashboardPage } from "./CentreDashboardPage";
 import { GroupDashboardPage } from "./GroupDashboardPage";
 
 const PAGE_SIZE = 5;
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export function WorkspacePage() {
   const { session } = useSession();
@@ -159,7 +152,8 @@ function OwnerWorkspacePage({ dashboard, user }) {
         </div>
       </div>
       <section className="metric-grid">
-        <Metric
+        <MetricCard
+          icon={Building2}
           label="Registered parishes"
           value={dashboard?.counts?.parishes ?? parishes.length}
           detail={`${dashboard?.counts?.parishes ?? parishes.filter((item) => item.status === "active").length} active environments`}
@@ -265,151 +259,30 @@ function OwnerWorkspacePage({ dashboard, user }) {
         {visibleParishes.length === 0 && (
           <div className="empty-state">No parishes match your filters.</div>
         )}
-        <div className="pagination">
-          <span>
-            Showing {visibleParishes.length} of {filteredParishes.length}
-          </span>
-          <div>
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <strong>
-              {page} / {pageCount}
-            </strong>
-            <button
-              disabled={page === pageCount}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          page={page}
+          pageCount={pageCount}
+          total={filteredParishes.length}
+          visibleCount={visibleParishes.length}
+          onPage={setPage}
+        />
       </section>
       {isFormOpen && (
-        <ParishForm
+        <EntityFormModal
+          entity="parishes"
+          definition={entityDefinitions.parishes}
           form={form}
           setForm={setForm}
           editing={editing}
           onSubmit={submitParish}
           onClose={() => setFormOpen(false)}
+          fieldLabels={{ name: "Parish name", priest: "Parish priest" }}
+          copy={{
+            createEyebrow: "New environment",
+            editEyebrow: "Edit environment",
+          }}
         />
       )}
-    </div>
-  );
-}
-
-function Metric({ label, value, detail }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Building2 size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>{detail}</p>
-      </div>
-    </article>
-  );
-}
-function ParishForm({ form, setForm, editing, onSubmit, onClose }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing ? "Edit environment" : "New environment"}
-            </span>
-            <h2>{editing ? "Update parish" : "Create parish"}</h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          <label>
-            Parish name
-            <input
-              value={form.name}
-              onChange={(event) => {
-                const name = event.target.value;
-                setForm({
-                  ...form,
-                  name,
-                  username: name.trim()
-                    ? updateGeneratedUsername(name, form.username)
-                    : "",
-                });
-              }}
-            />
-          </label>
-          <label>
-            Location
-            <input
-              value={form.location}
-              onChange={(event) =>
-                setForm({ ...form, location: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Parish priest
-            <input
-              value={form.priest}
-              onChange={(event) =>
-                setForm({ ...form, priest: event.target.value })
-              }
-            />
-          </label>
-          {!editing && (
-            <>
-              <label>
-                Generated username
-                <input value={form.username} readOnly />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm({ ...form, password: event.target.value })
-                  }
-                />
-              </label>
-            </>
-          )}
-          <label>
-            Status
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm({ ...form, status: event.target.value })
-              }
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
-            </select>
-          </label>
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : "Create parish"}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

@@ -12,8 +12,6 @@ import {
 import {
   Activity,
   ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
   CircleDollarSign,
   MoreHorizontal,
   Plus,
@@ -21,19 +19,17 @@ import {
   UsersRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ContributionFormModal } from "../components/ContributionFormModal";
+import { EntityFormModal } from "../components/EntityFormModal";
+import { MetricCard } from "../components/MetricCard";
+import { PaginationControls } from "../components/PaginationControls";
+import { entityDefinitions } from "../config/entityDefinitions";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
 import { getMonthlyTrend } from "../services/monthlyTrend";
+import { formatCurrency as money, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 5;
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export function GroupDashboardPage({ dashboard }) {
   const { session } = useSession();
@@ -241,19 +237,19 @@ export function GroupDashboardPage({ dashboard }) {
         </div>
       </div>
       <section className="metric-grid">
-        <Metric
+        <MetricCard
           icon={UsersRound}
           label="Members"
           value={members.length}
           detail={`${members.filter((item) => item.status === "active").length} active members`}
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Contributions"
           value={money(total)}
           detail={`${contributions.length} recorded transactions`}
         />
-        <Metric
+        <MetricCard
           icon={Activity}
           label="Recent activity"
           value={
@@ -447,10 +443,11 @@ export function GroupDashboardPage({ dashboard }) {
         {visibleMembers.length === 0 && (
           <div className="empty-state">No members match your filters.</div>
         )}
-        <Pagination
+        <PaginationControls
           page={memberPage}
           pageCount={memberCount}
           total={filteredMembers.length}
+          pageSize={PAGE_SIZE}
           onPage={setMemberPage}
         />
       </section>
@@ -538,24 +535,29 @@ export function GroupDashboardPage({ dashboard }) {
             No contributions match your filters.
           </div>
         )}
-        <Pagination
+        <PaginationControls
           page={contributionPage}
           pageCount={contributionCount}
           total={filteredContributions.length}
+          pageSize={PAGE_SIZE}
           onPage={setContributionPage}
         />
       </section>
       {modal === "member" && (
-        <MemberForm
+        <EntityFormModal
+          entity="members"
+          definition={entityDefinitions.members}
           form={memberForm}
           setForm={setMemberForm}
           editing={editing}
           onSubmit={submitMember}
           onClose={() => setModal(null)}
+          fieldLabels={{ name: "Full name", phone: "Phone number" }}
+          copy={{ createTitle: "Add member", createAction: "Add member" }}
         />
       )}
       {modal === "contribution" && (
-        <ContributionForm
+        <ContributionFormModal
           form={contributionForm}
           setForm={setContributionForm}
           members={members}
@@ -564,222 +566,6 @@ export function GroupDashboardPage({ dashboard }) {
           onClose={() => setModal(null)}
         />
       )}
-    </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value, detail }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>{detail}</p>
-      </div>
-    </article>
-  );
-}
-function Pagination({ page, pageCount, total, onPage }) {
-  return (
-    <div className="pagination">
-      <span>
-        Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
-        {Math.min(page * PAGE_SIZE, total)} of {total}
-      </span>
-      <div>
-        <button
-          disabled={page === 1}
-          onClick={() => onPage((value) => value - 1)}
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <strong>
-          {page} / {pageCount}
-        </strong>
-        <button
-          disabled={page === pageCount}
-          onClick={() => onPage((value) => value + 1)}
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
-function MemberForm({ form, setForm, editing, onSubmit, onClose }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing ? "Edit member" : "New member"}
-            </span>
-            <h2>{editing ? "Update member" : "Add member"}</h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          <label>
-            Full name
-            <input
-              value={form.name}
-              onChange={(event) =>
-                setForm({ ...form, name: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Phone number
-            <input
-              value={form.phone}
-              onChange={(event) =>
-                setForm({ ...form, phone: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Status
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm({ ...form, status: event.target.value })
-              }
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : "Add member"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-function ContributionForm({
-  form,
-  setForm,
-  members,
-  editing,
-  onSubmit,
-  onClose,
-}) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing ? "Edit contribution" : "New contribution"}
-            </span>
-            <h2>{editing ? "Update contribution" : "Record contribution"}</h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          <label>
-            Member
-            <select
-              value={form.memberId}
-              onChange={(event) =>
-                setForm({ ...form, memberId: event.target.value })
-              }
-            >
-              {members.map((member) => (
-                <option value={member.id} key={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Amount (KES)
-            <input
-              type="number"
-              min="1"
-              value={form.amount}
-              onChange={(event) =>
-                setForm({ ...form, amount: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Category
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm({ ...form, category: event.target.value })
-              }
-            >
-              <option value="tithes">Tithes</option>
-              <option value="sunday-offering">Sunday Offering</option>
-              <option value="development-fund">Development Fund</option>
-            </select>
-          </label>
-          <label>
-            Date
-            <input
-              type="date"
-              value={form.date}
-              onChange={(event) =>
-                setForm({ ...form, date: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Method
-            <select
-              value={form.method}
-              onChange={(event) =>
-                setForm({ ...form, method: event.target.value })
-              }
-            >
-              <option>M-Pesa</option>
-              <option>Cash</option>
-              <option>Bank Transfer</option>
-            </select>
-          </label>
-          <label>
-            Reference
-            <input
-              value={form.reference}
-              onChange={(event) =>
-                setForm({ ...form, reference: event.target.value })
-              }
-            />
-          </label>
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : "Record contribution"}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
+import { MetricCard } from "../components/MetricCard";
 import { useRecords } from "../hooks/useRecords";
-
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+import { titleCase } from "../services/formatters";
 
 export function ParishHierarchyPage({ entity }) {
   const { records: centres } = useRecords("centres");
@@ -39,21 +38,17 @@ export function ParishHierarchyPage({ entity }) {
         </div>
       </div>
       <section className="metric-grid">
-        <article className="metric-card">
-          <div>
-            <span className="eyebrow">Total {entity}</span>
-            <strong>{records.length}</strong>
-            <p>Across your parish</p>
-          </div>
-        </article>
+        <MetricCard
+          label={`Total ${entity}`}
+          value={records.length}
+          detail="Across your parish"
+        />
         {entity === "groups" && (
-          <article className="metric-card">
-            <div>
-              <span className="eyebrow">Centres</span>
-              <strong>{centres.length}</strong>
-              <p>In your parish</p>
-            </div>
-          </article>
+          <MetricCard
+            label="Centres"
+            value={centres.length}
+            detail="In your parish"
+          />
         )}
       </section>
       <section className="panel parish-panel register-panel">

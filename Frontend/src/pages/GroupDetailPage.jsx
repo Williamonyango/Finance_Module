@@ -1,13 +1,9 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CircleDollarSign, UsersRound } from "lucide-react";
+import { DetailNotFound } from "../components/DetailNotFound";
+import { MetricCard } from "../components/MetricCard";
 import { useRecords } from "../hooks/useRecords";
-
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
+import { formatCurrency as money } from "../services/formatters";
 
 export function GroupDetailPage() {
   const { groupId } = useParams();
@@ -19,13 +15,10 @@ export function GroupDetailPage() {
   const group = groups.find((item) => item.id === groupId);
   if (!group)
     return (
-      <div className="empty-state detail-not-found">
-        <h2>Group not found</h2>
-        <p>This group is unavailable in your current centre scope.</p>
-        <Link className="secondary-button" to="/">
-          Return to dashboard
-        </Link>
-      </div>
+      <DetailNotFound
+        title="Group not found"
+        description="This group is unavailable in your current centre scope."
+      />
     );
   const centre = centres.find((item) => item.id === group.centreId);
   const groupMembers = members.filter((item) => item.groupId === group.id);
@@ -65,16 +58,23 @@ export function GroupDetailPage() {
         </div>
       </div>
       <section className="metric-grid detail-metrics">
-        <Metric icon={UsersRound} label="Members" value={groupMembers.length} />
-        <Metric
+        <MetricCard
+          icon={UsersRound}
+          label="Members"
+          value={groupMembers.length}
+          detail="Calculated from current records"
+        />
+        <MetricCard
           icon={CircleDollarSign}
           label="Contribution total"
           value={money(total)}
+          detail="Calculated from current records"
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Transactions"
           value={groupContributions.length}
+          detail="Calculated from current records"
         />
       </section>
       <section className="panel detail-section">
@@ -124,20 +124,5 @@ export function GroupDetailPage() {
         </div>
       </section>
     </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>Calculated from current records</p>
-      </div>
-    </article>
   );
 }

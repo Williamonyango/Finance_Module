@@ -20,19 +20,15 @@ import {
   Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ContributionFormModal } from "../components/ContributionFormModal";
+import { MetricCard } from "../components/MetricCard";
+import { PaginationControls } from "../components/PaginationControls";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
 import { downloadContributionsCsv } from "../services/apiClient";
+import { formatCurrency as money, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 8;
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export function ContributionManagementPage() {
   const { session } = useSession();
@@ -249,19 +245,19 @@ export function ContributionManagementPage() {
         </div>
       </div>
       <section className="metric-grid">
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Filtered total"
           value={money(filtered.reduce((sum, item) => sum + item.amount, 0))}
           detail={`${filtered.length} matching records`}
         />
-        <Metric
+        <MetricCard
           icon={FileText}
           label="All records"
           value={contributions.length}
           detail={`Total recorded ${money(total)}`}
         />
-        <Metric
+        <MetricCard
           icon={CalendarDays}
           label="This month"
           value={money(
@@ -271,7 +267,7 @@ export function ContributionManagementPage() {
           )}
           detail="October 2026"
         />
-        <Metric
+        <MetricCard
           icon={ArrowDownUp}
           label="Categories"
           value={summaryByCategory.filter((item) => item.amount > 0).length}
@@ -535,168 +531,30 @@ export function ContributionManagementPage() {
             No contributions match the selected filters.
           </div>
         )}
-        <div className="pagination">
-          <span>
-            Showing {visible.length} of {filtered.length}
-          </span>
-          <div>
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              ‹
-            </button>
-            <strong>
-              {page} / {pageCount}
-            </strong>
-            <button
-              disabled={page === pageCount}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              ›
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          page={page}
+          pageCount={pageCount}
+          total={filtered.length}
+          visibleCount={visible.length}
+          onPage={setPage}
+          iconArrows={false}
+        />
       </section>
       {isFormOpen && (
-        <ContributionForm
+        <ContributionFormModal
           form={form}
           setForm={setForm}
           members={visibleMembers}
           editing={editing}
           onSubmit={submit}
           onClose={() => setFormOpen(false)}
+          copy={{ createEyebrow: "New record", editEyebrow: "Edit record" }}
         />
       )}
     </div>
   );
 }
 
-function Metric({ icon: Icon, label, value, detail }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>{detail}</p>
-      </div>
-    </article>
-  );
-}
-function ContributionForm({
-  form,
-  setForm,
-  members,
-  editing,
-  onSubmit,
-  onClose,
-}) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing ? "Edit record" : "New record"}
-            </span>
-            <h2>{editing ? "Update contribution" : "Record contribution"}</h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          <label>
-            Member
-            <select
-              value={form.memberId}
-              onChange={(event) =>
-                setForm({ ...form, memberId: event.target.value })
-              }
-            >
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Amount (KES)
-            <input
-              type="number"
-              min="1"
-              value={form.amount}
-              onChange={(event) =>
-                setForm({ ...form, amount: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Category
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm({ ...form, category: event.target.value })
-              }
-            >
-              <option value="tithes">Tithes</option>
-              <option value="sunday-offering">Sunday Offering</option>
-              <option value="development-fund">Development Fund</option>
-            </select>
-          </label>
-          <label>
-            Date
-            <input
-              type="date"
-              value={form.date}
-              onChange={(event) =>
-                setForm({ ...form, date: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Method
-            <select
-              value={form.method}
-              onChange={(event) =>
-                setForm({ ...form, method: event.target.value })
-              }
-            >
-              <option>M-Pesa</option>
-              <option>Cash</option>
-              <option>Bank Transfer</option>
-            </select>
-          </label>
-          <label>
-            Reference
-            <input
-              value={form.reference}
-              onChange={(event) =>
-                setForm({ ...form, reference: event.target.value })
-              }
-            />
-          </label>
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : "Record contribution"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 function download(content, filename, type) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([content], { type }));

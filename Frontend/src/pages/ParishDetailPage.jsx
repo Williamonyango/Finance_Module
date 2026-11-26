@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
@@ -6,14 +6,10 @@ import {
   UsersRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { DetailNotFound } from "../components/DetailNotFound";
+import { MetricCard } from "../components/MetricCard";
 import { useRecords } from "../hooks/useRecords";
-
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
+import { formatCurrency as money } from "../services/formatters";
 
 export function ParishDetailPage() {
   const { parishId } = useParams();
@@ -26,13 +22,10 @@ export function ParishDetailPage() {
   const parish = parishes.find((item) => item.id === parishId);
   if (!parish)
     return (
-      <div className="empty-state detail-not-found">
-        <h2>Parish not found</h2>
-        <p>This parish is unavailable in your current platform scope.</p>
-        <Link className="secondary-button" to="/">
-          Return to dashboard
-        </Link>
-      </div>
+      <DetailNotFound
+        title="Parish not found"
+        description="This parish is unavailable in your current platform scope."
+      />
     );
   const parishCentres = centres.filter((item) => item.parishId === parish.id);
   const parishGroups = groups.filter((item) => item.parishId === parish.id);
@@ -63,16 +56,23 @@ export function ParishDetailPage() {
         </span>
       </div>
       <section className="metric-grid detail-metrics">
-        <Metric icon={Building2} label="Centres" value={parishCentres.length} />
-        <Metric
+        <MetricCard
+          icon={Building2}
+          label="Centres"
+          value={parishCentres.length}
+          detail="Calculated from current records"
+        />
+        <MetricCard
           icon={UsersRound}
           label="Members"
           value={parishMembers.length}
+          detail="Calculated from current records"
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Recorded contributions"
           value={money(total)}
+          detail="Calculated from current records"
         />
       </section>
       <section className="panel detail-section">
@@ -129,20 +129,5 @@ export function ParishDetailPage() {
         Open administrative environment
       </button>
     </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>Calculated from current records</p>
-      </div>
-    </article>
   );
 }

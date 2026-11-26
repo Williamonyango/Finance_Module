@@ -1,13 +1,9 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CircleDollarSign, UsersRound } from "lucide-react";
+import { DetailNotFound } from "../components/DetailNotFound";
+import { MetricCard } from "../components/MetricCard";
 import { useRecords } from "../hooks/useRecords";
-
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
+import { formatCurrency as money } from "../services/formatters";
 
 export function CentreDetailPage() {
   const { centreId } = useParams();
@@ -19,13 +15,10 @@ export function CentreDetailPage() {
   const centre = centres.find((item) => item.id === centreId);
   if (!centre)
     return (
-      <div className="empty-state detail-not-found">
-        <h2>Centre not found</h2>
-        <p>This centre is unavailable in your current parish scope.</p>
-        <Link className="secondary-button" to="/">
-          Return to dashboard
-        </Link>
-      </div>
+      <DetailNotFound
+        title="Centre not found"
+        description="This centre is unavailable in your current parish scope."
+      />
     );
   const centreGroups = groups.filter((item) => item.centreId === centre.id);
   const centreMembers = members.filter((item) => item.centreId === centre.id);
@@ -49,16 +42,23 @@ export function CentreDetailPage() {
         </span>
       </div>
       <section className="metric-grid detail-metrics">
-        <Metric icon={UsersRound} label="Groups" value={centreGroups.length} />
-        <Metric
+        <MetricCard
+          icon={UsersRound}
+          label="Groups"
+          value={centreGroups.length}
+          detail="Calculated from current records"
+        />
+        <MetricCard
           icon={UsersRound}
           label="Members"
           value={centreMembers.length}
+          detail="Calculated from current records"
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Contribution total"
           value={money(total)}
+          detail="Calculated from current records"
         />
       </section>
       <section className="panel detail-section">
@@ -120,20 +120,5 @@ export function CentreDetailPage() {
         </div>
       </section>
     </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>Calculated from current records</p>
-      </div>
-    </article>
   );
 }

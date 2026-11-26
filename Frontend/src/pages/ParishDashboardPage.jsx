@@ -13,8 +13,6 @@ import {
   Activity,
   ArrowUpRight,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   CircleDollarSign,
   MoreHorizontal,
   Plus,
@@ -22,23 +20,17 @@ import {
   UsersRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { EntityFormModal } from "../components/EntityFormModal";
+import { MetricCard } from "../components/MetricCard";
+import { PaginationControls } from "../components/PaginationControls";
+import { entityDefinitions } from "../config/entityDefinitions";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
-import {
-  generateUsername,
-  updateGeneratedUsername,
-} from "../services/username";
+import { generateUsername } from "../services/username";
 import { getMonthlyTrend } from "../services/monthlyTrend";
+import { formatCurrency, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 5;
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
-const titleCase = (value) =>
-  value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export function ParishDashboardPage({ dashboard }) {
   const { session } = useSession();
@@ -176,25 +168,25 @@ export function ParishDashboardPage({ dashboard }) {
         </div>
       </div>
       <section className="metric-grid">
-        <Metric
+        <MetricCard
           icon={Building2}
           label="Centres"
           value={centres.length}
           detail={`${centres.filter((item) => item.status === "active").length} active centres`}
         />
-        <Metric
+        <MetricCard
           icon={UsersRound}
           label="Members"
           value={members.length}
           detail={`${groups.length} parish groups`}
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Contribution total"
           value={formatCurrency(total)}
           detail={`${contributions.length} recorded transactions`}
         />
-        <Metric
+        <MetricCard
           icon={Activity}
           label="Recent activity"
           value={
@@ -387,28 +379,13 @@ export function ParishDashboardPage({ dashboard }) {
         {visible.length === 0 && (
           <div className="empty-state">No centres match your filters.</div>
         )}
-        <div className="pagination">
-          <span>
-            Showing {visible.length} of {filtered.length}
-          </span>
-          <div>
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <strong>
-              {page} / {pageCount}
-            </strong>
-            <button
-              disabled={page === pageCount}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          page={page}
+          pageCount={pageCount}
+          total={filtered.length}
+          visibleCount={visible.length}
+          onPage={setPage}
+        />
       </section>
       <ParishMemberDirectory
         centres={centres}
@@ -416,117 +393,17 @@ export function ParishDashboardPage({ dashboard }) {
         members={members}
       />
       {isFormOpen && (
-        <CentreForm
+        <EntityFormModal
+          entity="centres"
+          definition={entityDefinitions.centres}
           form={form}
           setForm={setForm}
           editing={editing}
           onSubmit={submit}
           onClose={() => setFormOpen(false)}
+          fieldLabels={{ name: "Centre name" }}
         />
       )}
-    </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value, detail }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>{detail}</p>
-      </div>
-    </article>
-  );
-}
-function CentreForm({ form, setForm, editing, onSubmit, onClose }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-heading">
-          <div>
-            <span className="eyebrow">
-              {editing ? "Edit centre" : "New centre"}
-            </span>
-            <h2>{editing ? "Update centre" : "Create centre"}</h2>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form className="modal-form" onSubmit={onSubmit}>
-          <label>
-            Centre name
-            <input
-              value={form.name}
-              onChange={(event) => {
-                const name = event.target.value;
-                setForm({
-                  ...form,
-                  name,
-                  username: name.trim()
-                    ? updateGeneratedUsername(name, form.username)
-                    : "",
-                });
-              }}
-            />
-          </label>
-          <label>
-            Location
-            <input
-              value={form.location}
-              onChange={(event) =>
-                setForm({ ...form, location: event.target.value })
-              }
-            />
-          </label>
-          {!editing && (
-            <>
-              <label>
-                Generated username
-                <input value={form.username} readOnly />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm({ ...form, password: event.target.value })
-                  }
-                />
-              </label>
-            </>
-          )}
-          <label>
-            Status
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm({ ...form, status: event.target.value })
-              }
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="primary-button compact-button" type="submit">
-              {editing ? "Save changes" : "Create centre"}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

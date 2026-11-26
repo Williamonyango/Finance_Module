@@ -1,0 +1,47 @@
+export const entityDefinitions = {
+  parishes: {
+    title: "Parishes",
+    eyebrow: "Platform administration",
+    description: "Manage independent parish environments.",
+    singular: "parish",
+    fields: ["name", "location", "priest", "username", "password", "status"],
+    defaults: {
+      name: "",
+      location: "",
+      priest: "",
+      username: "",
+      password: "",
+      status: "active",
+    },
+  },
+  centres: {
+    title: "Centres",
+    eyebrow: "Parish administration",
+    description: "Manage centres belonging to your parish.",
+    singular: "centre",
+    fields: ["name", "location", "username", "password", "status"],
+    defaults: {
+      name: "",
+      location: "",
+      username: "",
+      password: "",
+      status: "active",
+    },
+  },
+  groups: {
+    title: "Groups",
+    eyebrow: "Centre administration",
+    description: "Manage church groups belonging to your centre.",
+    singular: "group",
+    fields: ["name", "username", "password", "status"],
+    defaults: { name: "", username: "", password: "", status: "active" },
+  },
+  members: {
+    title: "Members",
+    eyebrow: "Group administration",
+    description: "Manage members belonging to your group.",
+    singular: "member",
+    fields: ["name", "phone", "status"],
+    defaults: { name: "", phone: "", status: "active" },
+  },
+};

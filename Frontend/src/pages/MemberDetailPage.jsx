@@ -1,13 +1,9 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CircleDollarSign, UsersRound } from "lucide-react";
+import { DetailNotFound } from "../components/DetailNotFound";
+import { MetricCard } from "../components/MetricCard";
 import { useRecords } from "../hooks/useRecords";
-
-const money = (value) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(value);
+import { formatCurrency as money } from "../services/formatters";
 
 export function MemberDetailPage() {
   const { memberId } = useParams();
@@ -19,13 +15,10 @@ export function MemberDetailPage() {
   const member = members.find((item) => item.id === memberId);
   if (!member)
     return (
-      <div className="empty-state detail-not-found">
-        <h2>Member not found</h2>
-        <p>This member is unavailable in your current group scope.</p>
-        <Link className="secondary-button" to="/">
-          Return to dashboard
-        </Link>
-      </div>
+      <DetailNotFound
+        title="Member not found"
+        description="This member is unavailable in your current group scope."
+      />
     );
   const group = groups.find((item) => item.id === member.groupId);
   const centre = centres.find((item) => item.id === member.centreId);
@@ -63,16 +56,23 @@ export function MemberDetailPage() {
         </span>
       </div>
       <section className="metric-grid detail-metrics">
-        <Metric icon={UsersRound} label="Member status" value={member.status} />
-        <Metric
+        <MetricCard
+          icon={UsersRound}
+          label="Member status"
+          value={member.status}
+          detail="Calculated from current records"
+        />
+        <MetricCard
           icon={CircleDollarSign}
           label="Total contributions"
           value={money(total)}
+          detail="Calculated from current records"
         />
-        <Metric
+        <MetricCard
           icon={CircleDollarSign}
           label="Transactions"
           value={history.length}
+          detail="Calculated from current records"
         />
       </section>
       <section className="panel detail-section">
@@ -103,20 +103,5 @@ export function MemberDetailPage() {
         )}
       </section>
     </div>
-  );
-}
-
-function Metric({ icon: Icon, label, value }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-icon">
-        <Icon size={19} />
-      </div>
-      <div>
-        <span className="eyebrow">{label}</span>
-        <strong>{value}</strong>
-        <p>Calculated from current records</p>
-      </div>
-    </article>
   );
 }
