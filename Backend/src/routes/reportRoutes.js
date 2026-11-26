@@ -18,6 +18,22 @@ router.get("/contributions.csv", async (request, response, next) => {
   }
 });
 
+router.get("/contributions.xlsx", async (request, response, next) => {
+  try {
+    const report = await service.excel(request.user, parse(request.query));
+    response
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .set(
+        "Content-Disposition",
+        `attachment; filename="${report.filename}"`,
+      )
+      .set("Access-Control-Expose-Headers", "Content-Disposition")
+      .send(report.content);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/contributions.summary", async (request, response, next) => {
   try {
     const filters = parse(request.query);
@@ -29,6 +45,24 @@ router.get("/contributions.summary", async (request, response, next) => {
 });
 
 for (const resource of ["parishes", "centres", "groups"]) {
+  router.get(`/${resource}/:id/summary.pdf`, async (request, response, next) => {
+    try {
+      const report = await service.summaryPdf(
+        request.user,
+        resource,
+        request.params.id,
+        parse(request.query),
+      );
+      response
+        .type("application/pdf")
+        .set("Content-Disposition", `attachment; filename="${report.filename}"`)
+        .set("Access-Control-Expose-Headers", "Content-Disposition")
+        .send(report.content);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get(`/${resource}/:id/summary`, async (request, response, next) => {
     try {
       response.json({

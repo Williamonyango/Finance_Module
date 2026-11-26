@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "../context/SessionContext";
+import { BrandLogo } from "../components/BrandLogo";
 
 export function LoginPage() {
   const [username, setUsername] = useState("");
@@ -25,12 +26,8 @@ export function LoginPage() {
     <main className="login-page">
       <section className="login-visual">
         <div className="login-visual-inner">
-          <div className="brand brand--light">
-            <div className="brand-mark">✦</div>
-            <div>
-              <strong>Parish Ledger</strong>
-              <span>Finance ERP</span>
-            </div>
+          <div className="brand">
+            <BrandLogo />
           </div>
           <div className="login-message">
             <span className="eyebrow eyebrow--light">
@@ -53,11 +50,7 @@ export function LoginPage() {
       <section className="login-panel">
         <div className="login-form-wrap">
           <div className="mobile-brand brand">
-            <div className="brand-mark">✦</div>
-            <div>
-              <strong>Parish Ledger</strong>
-              <span>Finance ERP</span>
-            </div>
+            <BrandLogo />
           </div>
           <span className="eyebrow">Welcome back</span>
           <h2>Sign in to your workspace</h2>

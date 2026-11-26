@@ -27,6 +27,7 @@ import { entityDefinitions } from "../config/entityDefinitions";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
 import { getMonthlyTrend } from "../services/monthlyTrend";
+import { downloadSummaryReportPdf } from "../services/apiClient";
 import { formatCurrency as money, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 5;
@@ -209,14 +210,14 @@ export function GroupDashboardPage({ dashboard }) {
       toast.error(error.message);
     }
   };
-  const generateReport = () => {
-    const report = `${group?.name || "Group"} financial summary\nRecorded contributions: ${money(total)}\nMembers: ${members.length}\nTransactions: ${contributions.length}\nGenerated: ${new Date().toLocaleDateString()}`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([report], { type: "text/plain" }));
-    link.download = `${group?.id || "group"}-summary.txt`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    toast.success("Group summary report generated.");
+  const generateReport = async () => {
+    if (!group) return toast.error("Group details are still loading.");
+    try {
+      await downloadSummaryReportPdf("groups", group.id);
+      toast.success("Group PDF report downloaded.");
+    } catch (error) {
+      toast.error(error.message || "Unable to generate the PDF report.");
+    }
   };
 
   return (

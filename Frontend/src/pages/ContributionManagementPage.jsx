@@ -14,10 +14,10 @@ import {
   CircleDollarSign,
   Download,
   FileText,
-  MoreHorizontal,
   Plus,
   Printer,
   Search,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { ContributionFormModal } from "../components/ContributionFormModal";
@@ -25,7 +25,7 @@ import { MetricCard } from "../components/MetricCard";
 import { PaginationControls } from "../components/PaginationControls";
 import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
-import { downloadContributionsCsv } from "../services/apiClient";
+import { downloadContributionsExcel } from "../services/apiClient";
 import { formatCurrency as money, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 8;
@@ -54,6 +54,8 @@ export function ContributionManagementPage() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [isFormOpen, setFormOpen] = useState(false);
+  const [recordToVoid, setRecordToVoid] = useState(null);
+  const [isVoiding, setIsVoiding] = useState(false);
   const [form, setForm] = useState({
     memberId: "",
     amount: "",
@@ -137,10 +139,15 @@ export function ContributionManagementPage() {
   };
   const openForm = (contribution) => {
     setEditing(contribution);
+    const contributionMember = members.find(
+      (member) => member.id === contribution?.memberId,
+    );
     setForm(
       contribution
         ? {
             memberId: contribution.memberId,
+            centreId: contribution.centreId || contributionMember?.centreId || "",
+            groupId: contribution.groupId || contributionMember?.groupId || "",
             amount: contribution.amount,
             category: contribution.category,
             date: contribution.date,
@@ -148,7 +155,9 @@ export function ContributionManagementPage() {
             reference: contribution.reference,
           }
         : {
-            memberId: visibleMembers[0]?.id || "",
+            memberId: "",
+            centreId: canChooseCentre ? "" : session.centreId || "",
+            groupId: canChooseGroup ? "" : session.groupId || "",
             amount: "",
             category: "tithes",
             date: "2026-10-26",
@@ -162,9 +171,17 @@ export function ContributionManagementPage() {
     event.preventDefault();
     const amount = Number(form.amount);
     const member = members.find((item) => item.id === form.memberId);
-    if (!member || !amount || amount <= 0 || !form.date || !form.reference)
+    if (
+      !member ||
+      (canChooseCentre && member.centreId !== form.centreId) ||
+      (canChooseGroup && member.groupId !== form.groupId) ||
+      !amount ||
+      amount <= 0 ||
+      !form.date ||
+      !form.reference
+    )
       return toast.error(
-        "Complete all fields with a positive amount and reference.",
+        "Select a member and complete all fields with a positive amount and reference.",
       );
     try {
       const payload = {
@@ -185,21 +202,28 @@ export function ContributionManagementPage() {
       toast.error(error.message);
     }
   };
-  const deleteRecord = async (record) => {
-    if (
-      !window.confirm("Void this contribution record? This cannot be undone.")
-    )
-      return;
+  const voidRecord = async () => {
+    if (!recordToVoid || isVoiding) return;
+    setIsVoiding(true);
     try {
-      await remove(record.id);
+      await remove(recordToVoid.id);
+      setRecordToVoid(null);
       toast.success("Contribution voided.");
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setIsVoiding(false);
     }
   };
-  const exportCsv = async () => {
+  const exportExcel = async () => {
     try {
-      const blob = await downloadContributionsCsv({
+      const sortBy = {
+        "date-desc": "date_desc",
+        "date-asc": "date_asc",
+        "amount-desc": "amount_desc",
+        "amount-asc": "amount_asc",
+      }[sort];
+      const { blob, filename } = await downloadContributionsExcel({
         fromDate,
         toDate,
         parishId,
@@ -207,11 +231,17 @@ export function ContributionManagementPage() {
         groupId,
         memberId,
         category,
+        q: query.trim(),
+        sort: sortBy,
       });
-      download(blob, "contribution-register.csv", "text/csv");
-      toast.success("CSV export generated.");
+      download(
+        blob,
+        filename,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      toast.success("Excel export generated.");
     } catch (error) {
-      toast.error(error.message || "Unable to export CSV.");
+      toast.error(error.message || "Unable to export Excel.");
     }
   };
   const printReport = () => {
@@ -233,8 +263,8 @@ export function ContributionManagementPage() {
           <button className="secondary-button" onClick={printReport}>
             <Printer size={15} /> Print report
           </button>
-          <button className="secondary-button" onClick={exportCsv}>
-            <Download size={15} /> Export CSV
+          <button className="secondary-button" onClick={exportExcel}>
+            <Download size={15} /> Export Excel
           </button>
           <button
             className="primary-button compact-button"
@@ -514,10 +544,12 @@ export function ContributionManagementPage() {
                     <div className="row-actions">
                       <button onClick={() => openForm(item)}>Edit</button>{" "}
                       <button
+                        className="destructive-action"
                         title="Void contribution"
-                        onClick={() => deleteRecord(item)}
+                        aria-label="Void contribution"
+                        onClick={() => setRecordToVoid(item)}
                       >
-                        <MoreHorizontal size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -545,11 +577,81 @@ export function ContributionManagementPage() {
           form={form}
           setForm={setForm}
           members={visibleMembers}
+          centres={centres}
+          groups={groups}
+          canChooseCentre={canChooseCentre}
+          canChooseGroup={canChooseGroup}
           editing={editing}
           onSubmit={submit}
           onClose={() => setFormOpen(false)}
           copy={{ createEyebrow: "New record", editEyebrow: "Edit record" }}
         />
+      )}
+      {recordToVoid && (
+        <div className="modal-backdrop">
+          <section
+            className="modal confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="void-confirmation-title"
+            aria-describedby="void-confirmation-description"
+          >
+            <div className="modal-heading">
+              <div>
+                <span className="eyebrow">Confirm action</span>
+                <h2 id="void-confirmation-title">Void this contribution?</h2>
+              </div>
+            </div>
+            <p
+              className="confirmation-copy"
+              id="void-confirmation-description"
+            >
+              This contribution will be removed from active records. This
+              action cannot be undone.
+            </p>
+            <div className="confirmation-details">
+              <div>
+                <span>Member</span>
+                <strong>
+                  {members.find(
+                    (member) => member.id === recordToVoid.memberId,
+                  )?.name || "Unknown member"}
+                </strong>
+              </div>
+              <div>
+                <span>Amount</span>
+                <strong>{money(recordToVoid.amount)}</strong>
+              </div>
+              <div>
+                <span>Category</span>
+                <strong>{titleCase(recordToVoid.category)}</strong>
+              </div>
+              <div>
+                <span>Date</span>
+                <strong>{recordToVoid.date}</strong>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isVoiding}
+                onClick={() => setRecordToVoid(null)}
+                autoFocus
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={isVoiding}
+                onClick={voidRecord}
+              >
+                {isVoiding ? "Voiding..." : "Void contribution"}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );

@@ -10,6 +10,7 @@ import { MemberDetailPage } from "./pages/MemberDetailPage";
 import { ContributionManagementPage } from "./pages/ContributionManagementPage";
 import { EntityManagementPage } from "./pages/EntityManagementPage";
 import { ParishHierarchyPage } from "./pages/ParishHierarchyPage";
+import { CentreMembersPage } from "./pages/CentreMembersPage";
 import { useSession } from "./context/SessionContext";
 
 function ProtectedRoute({ children }) {
@@ -74,7 +75,7 @@ function App() {
             path="/members/:memberId"
             element={
               <ProtectedRoute>
-                <RoleRoute roles={["parish", "group"]}>
+                <RoleRoute roles={["parish", "centre", "group"]}>
                   <MemberDetailPage />
                 </RoleRoute>
               </ProtectedRoute>
@@ -124,7 +125,7 @@ function App() {
             path="/members"
             element={
               <ProtectedRoute>
-                <RoleRoute roles={["parish", "group"]}>
+                <RoleRoute roles={["parish", "centre", "group"]}>
                   <HierarchyListPage entity="members" />
                 </RoleRoute>
               </ProtectedRoute>
@@ -140,11 +141,11 @@ function App() {
 
 function HierarchyListPage({ entity }) {
   const { session } = useSession();
-  return session?.role === "parish" ? (
-    <ParishHierarchyPage entity={entity} />
-  ) : (
-    <EntityManagementPage entity={entity} />
-  );
+  if (session?.role === "parish")
+    return <ParishHierarchyPage entity={entity} />;
+  if (session?.role === "centre" && entity === "members")
+    return <CentreMembersPage />;
+  return <EntityManagementPage entity={entity} />;
 }
 
 export default App;

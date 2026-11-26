@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const { pool } = require("../db/pool");
 const { AppError } = require("../errors/AppError");
+const { buildContributionAuditMetadata } = require("./auditMetadata");
 
 function serialize(row) {
   if (!row) return null;
@@ -70,7 +71,7 @@ async function list(user, filters) {
   const page = Math.max(1, Number(filters.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(filters.pageSize) || 25));
   const scope = scopeConditions(user);
-  const conditions = [...scope.conditions];
+  const conditions = [...scope.conditions, "c.status = 'recorded'"];
   const values = [...scope.values];
   const add = (condition, ...parameters) => {
     conditions.push(condition);
@@ -153,7 +154,7 @@ async function create(user, input) {
     await connection.beginTransaction();
     const scope = scopeConditions(user, "m");
     const [members] = await connection.query(
-      `SELECT m.id, m.parish_id, m.centre_id, m.group_id
+      `SELECT m.id, m.parish_id, m.centre_id, m.group_id, m.name
        FROM members m WHERE m.id = ? ${scope.conditions.length ? `AND ${scope.conditions.join(" AND ")}` : ""}
        AND m.status = 'active' LIMIT 1`,
       [input.memberId, ...scope.values],
@@ -185,7 +186,26 @@ async function create(user, input) {
         user.id,
       ],
     );
-    await audit(connection, user, "create", id);
+    await audit(
+      connection,
+      user,
+      "create",
+      id,
+      buildContributionAuditMetadata({
+        action: "create",
+        current: {
+          memberName: member.name,
+          amount: input.amount,
+          currency: "KES",
+          category: input.category,
+          date: input.date,
+          method: input.method,
+          reference: input.reference,
+          notes: input.notes,
+        },
+        user,
+      }),
+    );
     await connection.commit();
     return serialize(await findById(id, user));
   } catch (error) {
@@ -229,7 +249,18 @@ async function update(user, id, input) {
       `UPDATE contributions SET ${entries.map(([field]) => `${field} = ?`).join(", ")} WHERE id = ?`,
       [...entries.map(([, value]) => value), id],
     );
-    await audit(connection, user, "update", id, { old: current, new: input });
+    await audit(
+      connection,
+      user,
+      "update",
+      id,
+      buildContributionAuditMetadata({
+        action: "update",
+        current,
+        input,
+        user,
+      }),
+    );
     await connection.commit();
     return serialize(await findById(id, user));
   } catch (error) {
@@ -264,10 +295,18 @@ async function voidContribution(user, id, reason) {
        WHERE id = ?`,
       [user.id, reason, id],
     );
-    await audit(connection, user, "void", id, {
-      old: current,
-      voidReason: reason,
-    });
+    await audit(
+      connection,
+      user,
+      "void",
+      id,
+      buildContributionAuditMetadata({
+        action: "void",
+        current,
+        reason,
+        user,
+      }),
+    );
     await connection.commit();
     return serialize(await findById(id, user));
   } catch (error) {

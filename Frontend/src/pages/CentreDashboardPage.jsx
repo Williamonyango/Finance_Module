@@ -19,6 +19,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { CentreMemberDirectory } from "../components/CentreMemberDirectory";
 import { EntityFormModal } from "../components/EntityFormModal";
 import { MetricCard } from "../components/MetricCard";
 import { PaginationControls } from "../components/PaginationControls";
@@ -27,6 +28,7 @@ import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
 import { generateUsername } from "../services/username";
 import { getMonthlyTrend } from "../services/monthlyTrend";
+import { downloadSummaryReportPdf } from "../services/apiClient";
 import { formatCurrency as money, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 5;
@@ -121,14 +123,14 @@ export function CentreDashboardPage({ dashboard }) {
       toast.error(error.message);
     }
   };
-  const generateReport = () => {
-    const report = `${centre?.name || "Centre"} financial summary\nRecorded contributions: ${money(total)}\nGroups: ${groups.length}\nMembers: ${members.length}\nGenerated: ${new Date().toLocaleDateString()}`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([report], { type: "text/plain" }));
-    link.download = `${centre?.id || "centre"}-summary.txt`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    toast.success("Centre summary report generated.");
+  const generateReport = async () => {
+    if (!centre) return toast.error("Centre details are still loading.");
+    try {
+      await downloadSummaryReportPdf("centres", centre.id);
+      toast.success("Centre PDF report downloaded.");
+    } catch (error) {
+      toast.error(error.message || "Unable to generate the PDF report.");
+    }
   };
 
   return (
@@ -381,6 +383,7 @@ export function CentreDashboardPage({ dashboard }) {
           onPage={setPage}
         />
       </section>
+      <CentreMemberDirectory groups={groups} members={members} />
       {isFormOpen && (
         <EntityFormModal
           entity="groups"

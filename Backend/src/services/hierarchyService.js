@@ -3,6 +3,7 @@ const crypto = require("node:crypto");
 const { pool } = require("../db/pool");
 const env = require("../config/env");
 const { AppError } = require("../errors/AppError");
+const { buildHierarchyAuditMetadata } = require("./auditMetadata");
 
 const definitions = {
   parishes: {
@@ -410,7 +411,19 @@ async function create(resource, user, input) {
       }
       row = await findById(resource, id, user, connection);
     }
-    await audit(connection, user, "create", resource, id);
+    await audit(
+      connection,
+      user,
+      "create",
+      resource,
+      id,
+      buildHierarchyAuditMetadata({
+        action: "create",
+        resource,
+        current: serialize(resource, row),
+        user,
+      }),
+    );
     await connection.commit();
     return administratorUsername
       ? { ...serialize(resource, row), administratorUsername }
@@ -502,7 +515,13 @@ async function mutate(resource, id, user, action, input) {
       action,
       resource,
       id,
-      action === "update" ? { old: current, new: input } : null,
+      buildHierarchyAuditMetadata({
+        action,
+        resource,
+        current: serialize(resource, current),
+        input: action === "delete" ? {} : input,
+        user,
+      }),
     );
     await connection.commit();
     return action === "delete"

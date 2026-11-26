@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useSession } from "../context/SessionContext";
 import toast from "react-hot-toast";
+import { BrandLogo } from "../components/BrandLogo";
 
 const ownerNavigation = [
   { label: "Overview", icon: LayoutDashboard, to: "/" },
@@ -28,6 +29,7 @@ const parishNavigation = [
 const centreNavigation = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/" },
   { label: "Groups", icon: Building2, to: "/groups" },
+  { label: "Members", icon: UsersRound, to: "/members" },
   { label: "Contributions", icon: CircleDollarSign, to: "/contributions" },
 ];
 const groupNavigation = [
@@ -75,11 +77,7 @@ export function AppShell() {
       )}
       <aside className={`sidebar ${isSidebarOpen ? "sidebar--open" : ""}`}>
         <div className="brand">
-          <div className="brand-mark">✦</div>
-          <div>
-            <strong>Parish Ledger</strong>
-            <span>Finance ERP</span>
-          </div>
+          <BrandLogo />
           <button
             className="icon-button sidebar-close"
             aria-label="Close navigation"

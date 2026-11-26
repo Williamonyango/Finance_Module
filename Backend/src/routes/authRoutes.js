@@ -8,6 +8,7 @@ const { AppError } = require("../errors/AppError");
 const { ensureCsrfToken } = require("../middleware/csrf");
 const { loadAuthenticatedUser } = require("../middleware/requireAuth");
 const { serializeUser } = require("../serializers/userSerializer");
+const { createAuditMetadata } = require("../services/auditMetadata");
 
 const router = express.Router();
 
@@ -119,6 +120,9 @@ router.post("/login", loginRateLimit, async (request, response, next) => {
         user.parish_id,
         "login",
         user.id,
+        createAuditMetadata(user, "Signed in successfully.", {
+          Username: user.username,
+        }),
       );
       await connection.commit();
     } catch (error) {
@@ -171,6 +175,9 @@ router.post(
           request.user.parish_id,
           "logout",
           request.user.id,
+          createAuditMetadata(request.user, "Signed out successfully.", {
+            Username: request.user.username,
+          }),
         );
       } finally {
         connection.release();
@@ -237,6 +244,11 @@ router.patch(
           request.user.parish_id,
           "password_change",
           request.user.id,
+          createAuditMetadata(
+            request.user,
+            "Changed their password successfully.",
+            { Username: request.user.username },
+          ),
         );
         await connection.commit();
       } catch (error) {

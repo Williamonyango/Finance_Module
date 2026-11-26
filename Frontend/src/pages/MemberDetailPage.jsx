@@ -17,7 +17,7 @@ export function MemberDetailPage() {
     return (
       <DetailNotFound
         title="Member not found"
-        description="This member is unavailable in your current group scope."
+        description="This member is unavailable in your current scope."
       />
     );
   const group = groups.find((item) => item.id === member.groupId);

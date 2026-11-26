@@ -249,17 +249,23 @@ export async function getDashboard(role, query = {}) {
   return response.data;
 }
 
-export async function downloadContributionsCsv(query = {}) {
+export async function downloadContributionsExcel(query = {}) {
   const params = new URLSearchParams(
-    Object.entries(query).filter(([, value]) => value),
+    Object.entries(query).filter(
+      ([, value]) => value && value !== "all",
+    ),
   );
   const response = await fetch(
-    `${API_BASE_URL}/reports/contributions.csv${params.toString() ? `?${params}` : ""}`,
+    `${API_BASE_URL}/reports/contributions.xlsx${params.toString() ? `?${params}` : ""}`,
     { credentials: "include" },
   );
   if (!response.ok)
-    throw new ApiError("Unable to download the report.", response.status);
-  return response.blob();
+    throw new ApiError("Unable to download the Excel report.", response.status);
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const filename =
+    /filename="([^"]+)"/i.exec(contentDisposition)?.[1] ||
+    "contribution-report.xlsx";
+  return { blob: await response.blob(), filename };
 }
 
 export async function getSummaryReport(resource, id, query = {}) {
@@ -270,4 +276,47 @@ export async function getSummaryReport(resource, id, query = {}) {
     `/reports/${resource}/${id}/summary${params.toString() ? `?${params}` : ""}`,
   );
   return response.data;
+}
+
+export async function downloadSummaryReportPdf(resource, id, query = {}) {
+  const params = new URLSearchParams(
+    Object.entries(query).filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    ),
+  );
+  const response = await fetch(
+    `${API_BASE_URL}/reports/${resource}/${id}/summary.pdf${params.toString() ? `?${params}` : ""}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    let body = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = null;
+    }
+    if (response.status === 401)
+      window.dispatchEvent(new CustomEvent("finance:session-expired"));
+    throw new ApiError(
+      body?.error?.message || "Unable to generate the PDF report.",
+      response.status,
+      body?.error?.code,
+      body?.error?.details,
+    );
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const filename =
+    /filename="([^"]+)"/i.exec(contentDisposition)?.[1] ||
+    "financial-summary.pdf";
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return filename;
 }

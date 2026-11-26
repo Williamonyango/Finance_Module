@@ -28,6 +28,7 @@ import { useSession } from "../context/SessionContext";
 import { useRecords } from "../hooks/useRecords";
 import { generateUsername } from "../services/username";
 import { getMonthlyTrend } from "../services/monthlyTrend";
+import { downloadSummaryReportPdf } from "../services/apiClient";
 import { formatCurrency, titleCase } from "../services/formatters";
 
 const PAGE_SIZE = 5;
@@ -136,14 +137,14 @@ export function ParishDashboardPage({ dashboard }) {
       toast.error(error.message);
     }
   };
-  const generateReport = () => {
-    const report = `${parish?.name || "Parish"} financial summary\nRecorded contributions: ${formatCurrency(total)}\nCentres: ${centres.length}\nMembers: ${members.length}\nGenerated: ${new Date().toLocaleDateString()}`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([report], { type: "text/plain" }));
-    link.download = `${parish?.id || "parish"}-summary.txt`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    toast.success("Parish summary report generated.");
+  const generateReport = async () => {
+    if (!parish) return toast.error("Parish details are still loading.");
+    try {
+      await downloadSummaryReportPdf("parishes", parish.id);
+      toast.success("Parish PDF report downloaded.");
+    } catch (error) {
+      toast.error(error.message || "Unable to generate the PDF report.");
+    }
   };
 
   return (

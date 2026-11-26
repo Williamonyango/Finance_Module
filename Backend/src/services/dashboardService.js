@@ -1,6 +1,14 @@
 const { pool } = require("../db/pool");
 const { AppError } = require("../errors/AppError");
 const {
+  buildContributionFilename,
+  buildContributionWorkbook,
+} = require("./contributionWorkbook");
+const {
+  buildSummaryReportFilename,
+  buildSummaryReportPdf,
+} = require("./summaryReportPdf");
+const {
   checkCentreAccess,
   checkGroupAccess,
   checkParishAccess,
@@ -227,6 +235,29 @@ function reportScope(user, resource, id) {
 
 async function summary(user, resource, id, filters = {}) {
   await assertReportScope(user, resource, id);
+  const hierarchy = {
+    parishes: {
+      table: "parishes",
+      memberColumn: "parish_id",
+      childTable: "centres",
+      childColumn: "parish_id",
+      childLabel: "Centres",
+    },
+    centres: {
+      table: "centres",
+      memberColumn: "centre_id",
+      childTable: "`groups`",
+      childColumn: "centre_id",
+      childLabel: "Groups",
+    },
+    groups: {
+      table: "`groups`",
+      memberColumn: "group_id",
+      childTable: null,
+      childColumn: null,
+      childLabel: null,
+    },
+  }[resource];
   const current = reportScope(user, resource, id);
   if (filters.fromDate) {
     current.conditions.push("c.contribution_date >= ?");
@@ -242,23 +273,76 @@ async function summary(user, resource, id, filters = {}) {
      FROM contributions c WHERE ${current.conditions.join(" AND ")}`,
     current.values,
   );
+  const [[entity]] = await pool.query(
+    `SELECT name FROM ${hierarchy.table} WHERE id = ?`,
+    [id],
+  );
+  const [[memberCount]] = await pool.query(
+    `SELECT COUNT(*) AS total FROM members WHERE ${hierarchy.memberColumn} = ?`,
+    [id],
+  );
+  let childCount = null;
+  if (hierarchy.childTable) {
+    const [[children]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM ${hierarchy.childTable} WHERE ${hierarchy.childColumn} = ?`,
+      [id],
+    );
+    childCount = Number(children.total);
+  }
   return {
     resource,
     id,
+    name: entity.name,
     total: row.total,
     contributionCount: Number(row.count),
     memberCount: Number(row.members),
+    contributingMemberCount: Number(row.members),
+    memberRecordCount: Number(memberCount.total),
+    childCount,
+    childLabel: hierarchy.childLabel,
+  };
+}
+
+async function summaryPdf(user, resource, id, filters = {}) {
+  const report = await summary(user, resource, id, filters);
+  const generatedAt = new Date();
+  return {
+    content: await buildSummaryReportPdf(report, filters, generatedAt),
+    filename: buildSummaryReportFilename(report.name, generatedAt),
   };
 }
 
 async function contributionRows(user, filters = {}) {
   const current = dateScope(user, filters);
+  const add = (condition, ...values) => {
+    current.conditions.push(condition);
+    current.values.push(...values);
+  };
+  if (filters.q) {
+    add(
+      "(m.name LIKE ? OR c.reference LIKE ? OR c.notes LIKE ? OR c.method LIKE ? OR c.contribution_date LIKE ?)",
+      ...Array(5).fill(`%${filters.q}%`),
+    );
+  }
+  if (filters.parishId) add("c.parish_id = ?", filters.parishId);
+  if (filters.centreId) add("c.centre_id = ?", filters.centreId);
+  if (filters.groupId) add("c.group_id = ?", filters.groupId);
+  if (filters.memberId) add("c.member_id = ?", filters.memberId);
+  if (filters.category) add("c.category = ?", filters.category);
+  if (filters.method) add("c.method = ?", filters.method);
+  const orderBy =
+    {
+      date_asc: "c.contribution_date ASC, c.created_at ASC",
+      amount_asc: "c.amount ASC, c.created_at DESC",
+      amount_desc: "c.amount DESC, c.created_at DESC",
+      date_desc: "c.contribution_date DESC, c.created_at DESC",
+    }[filters.sort] || "c.contribution_date DESC, c.created_at DESC";
   const [rows] = await pool.query(
     `SELECT c.contribution_date, c.amount, c.currency, c.category, c.method,
             c.reference, m.name AS member_name
      FROM contributions c JOIN members m ON m.id = c.member_id
      WHERE ${current.conditions.join(" AND ")}
-     ORDER BY c.contribution_date DESC, c.created_at DESC`,
+     ORDER BY ${orderBy}`,
     current.values,
   );
   return rows;
@@ -296,4 +380,83 @@ async function csv(user, filters) {
     .join("\r\n");
 }
 
-module.exports = { csv, dashboard, summary };
+async function contributionReportName(user, filters = {}) {
+  let table;
+  let id;
+  const conditions = ["id = ?"];
+  const values = [];
+  const addCondition = (field, value) => {
+    conditions.push(`${field} = ?`);
+    values.push(value);
+  };
+
+  if (user.role === "owner") {
+    if (filters.groupId) {
+      table = "`groups`";
+      id = filters.groupId;
+      if (filters.centreId) addCondition("centre_id", filters.centreId);
+      if (filters.parishId) addCondition("parish_id", filters.parishId);
+    } else if (filters.centreId) {
+      table = "centres";
+      id = filters.centreId;
+      if (filters.parishId) addCondition("parish_id", filters.parishId);
+    } else if (filters.parishId) {
+      table = "parishes";
+      id = filters.parishId;
+    } else {
+      return "All Parishes";
+    }
+  } else if (user.role === "group") {
+    table = "`groups`";
+    id = user.group_id;
+    addCondition("parish_id", user.parish_id);
+    addCondition("centre_id", user.centre_id);
+  } else if (user.role === "centre") {
+    addCondition("parish_id", user.parish_id);
+    if (filters.groupId) {
+      table = "`groups`";
+      id = filters.groupId;
+      addCondition("centre_id", user.centre_id);
+    } else {
+      table = "centres";
+      id = user.centre_id;
+    }
+  } else if (user.role === "parish") {
+    addCondition("parish_id", user.parish_id);
+    if (filters.groupId) {
+      table = "`groups`";
+      id = filters.groupId;
+      if (filters.centreId) addCondition("centre_id", filters.centreId);
+    } else if (filters.centreId) {
+      table = "centres";
+      id = filters.centreId;
+    } else {
+      table = "parishes";
+      id = user.parish_id;
+    }
+  } else {
+    return "Contribution Report";
+  }
+
+  const [rows] = await pool.query(
+    `SELECT name FROM ${table} WHERE ${conditions.join(" AND ")} LIMIT 1`,
+    [id, ...values],
+  );
+  return rows[0]?.name || "Contribution Report";
+}
+
+async function excel(user, filters) {
+  const rows = await contributionRows(user, filters);
+  const reportName = await contributionReportName(user, filters);
+  const generatedAt = new Date();
+  const workbook = buildContributionWorkbook(rows, {
+    title: reportName,
+    generatedAt,
+  });
+  return {
+    content: await workbook.xlsx.writeBuffer(),
+    filename: buildContributionFilename(reportName, generatedAt),
+  };
+}
+
+module.exports = { csv, dashboard, excel, summary, summaryPdf };
