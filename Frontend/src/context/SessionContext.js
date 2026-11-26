@@ -17,7 +17,7 @@ export function SessionProvider({ children }) {
   const value = useMemo(() => ({
     session,
     loading,
-    signIn: (email, password) => login(email, password).then((user) => { setSession(user); return user }),
+    signIn: (username, password) => login(username, password).then((user) => { setSession(user); return user }),
     signOut: () => logout().finally(() => setSession(null)),
   }), [session, loading])
   return createElement(SessionContext.Provider, { value }, children)

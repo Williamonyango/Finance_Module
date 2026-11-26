@@ -51,9 +51,9 @@ export async function getCsrfToken() {
   return csrfToken
 }
 
-export async function login(email, password) {
+export async function login(username, password) {
   await getCsrfToken()
-  const response = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+  const response = await request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) })
   csrfToken = response.data.csrfToken
   return response.data.user
 }
@@ -90,8 +90,8 @@ export async function createRecord(entity, input) {
     ? {
         ...input,
         administrator: input.administrator || {
-          name: input.email?.split('@')[0] || input.name,
-          email: input.email,
+          name: input.name,
+          username: input.username,
           password: input.password,
         },
       }

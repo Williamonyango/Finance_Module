@@ -2,7 +2,7 @@ function serializeUser(user) {
   return {
     id: user.id,
     name: user.name,
-    email: user.email,
+    username: user.username,
     role: user.role,
     status: user.status,
     parishId: user.parish_id || null,

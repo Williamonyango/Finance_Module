@@ -78,13 +78,15 @@ The API never returns password hashes or session identifiers. Cookies are
 HttpOnly, SameSite=Lax, and Secure in production. Login is rate limited.
 
 Creating a parish, centre, or group also creates its scoped administrator
-account. Use the email and password supplied in the creation form to sign in
-with the corresponding role. Hierarchy records created before scoped account
-creation was enabled do not receive accounts retroactively.
+account. The username is generated from the first word of the parish, centre,
+or group name and a unique identifier. Use that username and the password
+supplied in the creation form to sign in with the corresponding role. For
+existing accounts, the username migration assigns a `user-` identifier based
+on the user's ID.
 
 Development seed credentials:
 
-- Email: `owner@example.test`
+- Username: `owner`
 - Password: `demo-password`
 
 ## Phase 4 authorization

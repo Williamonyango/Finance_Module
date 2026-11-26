@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Activity, ArrowUpRight, ChevronLeft, ChevronRight, CircleDollarSign, MoreHorizontal, Plus, Search, UsersRound } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSession } from '../context/SessionContext'
 import { useRecords } from '../hooks/useRecords'
+import { getMonthlyTrend } from '../services/monthlyTrend'
 
 const PAGE_SIZE = 5
 const money = (value) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(value)
@@ -27,7 +28,7 @@ export function GroupDashboardPage({ dashboard }) {
   const [memberForm, setMemberForm] = useState({ name: '', phone: '', status: 'active' })
   const [contributionForm, setContributionForm] = useState({ memberId: '', amount: '', category: 'tithes', date: '2026-10-26', method: 'M-Pesa', reference: '' })
   const total = Number(dashboard?.contributions?.total ?? contributions.reduce((sum, item) => sum + Number(item.amount), 0))
-  const trend = useMemo(() => ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'].map((month, index) => ({ month, amount: contributions.filter((item) => new Date(item.date).getMonth() === index + 4).reduce((sum, item) => sum + item.amount, 0) || [0, 0, 8500, 12000, 18500, total][index] })), [contributions, total])
+  const trend = getMonthlyTrend(dashboard?.monthlyTrend)
   const filteredMembers = members.filter((member) => (memberStatus === 'all' || member.status === memberStatus) && member.name.toLowerCase().includes(memberQuery.toLowerCase()))
   const filteredContributions = contributions.filter((item) => (category === 'all' || item.category === category) && `${item.date} ${item.reference} ${item.method}`.toLowerCase().includes(contributionQuery.toLowerCase()))
   const memberCount = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE))

@@ -24,7 +24,7 @@ async function migrationFiles(down = false) {
   const suffix = down ? '.down.sql' : '.sql'
   const files = await fs.readdir(migrationsDirectory)
   return files
-    .filter((file) => file.endsWith(suffix) && !file.startsWith('001_initial_schema.down'))
+    .filter((file) => file.endsWith(suffix) && (down || !file.endsWith('.down.sql')))
     .sort()
 }
 

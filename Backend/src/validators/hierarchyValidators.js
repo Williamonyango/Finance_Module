@@ -5,18 +5,17 @@ const status = z.enum(['active', 'inactive', 'suspended'])
 const name = z.string().trim().min(1).max(150)
 const administrator = z.object({
   name,
-  email: z.string().trim().email().max(254),
+  username: z.string().regex(/^[a-z0-9]{1,80}[a-z]{2}[0-9]{2}$/).optional(),
   password: z.string().min(8).max(200),
 })
 
 const parishCreate = z.object({
   name,
-  code: z.string().trim().min(1).max(32),
   location: z.string().trim().max(150).optional().nullable(),
   priest: z.string().trim().max(150).optional().nullable(),
   administrator: z.object({
     name,
-    email: z.string().trim().email().max(254),
+    username: z.string().regex(/^[a-z0-9]{1,80}[a-z]{2}[0-9]{2}$/).optional(),
     password: z.string().min(8).max(200),
   }),
 })
@@ -42,7 +41,6 @@ const memberCreate = z.object({
 })
 const update = z.object({
   name: name.optional(),
-  code: z.string().trim().min(1).max(32).optional(),
   location: z.string().trim().max(150).optional().nullable(),
   priest: z.string().trim().max(150).optional().nullable(),
   phone: z.string().trim().max(32).optional().nullable(),

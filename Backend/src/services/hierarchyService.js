@@ -8,7 +8,7 @@ const definitions = {
   parishes: {
     table: 'parishes',
     singular: 'parish',
-    columns: ['id', 'name', 'code', 'location', 'priest', 'status', 'created_at', 'updated_at'],
+    columns: ['id', 'name', 'location', 'priest', 'status', 'created_at', 'updated_at'],
   },
   centres: {
     table: 'centres',
@@ -81,8 +81,41 @@ function canManage(resource, user) {
   }[resource]
 }
 
+function randomUsernameSuffix() {
+  const letters = 'abcdefghijklmnopqrstuvwxyz'
+  return `${letters[crypto.randomInt(26)]}${letters[crypto.randomInt(26)]}${crypto.randomInt(10)}${crypto.randomInt(10)}`
+}
+
+function generateUsername(name, suffix = randomUsernameSuffix()) {
+  if (!/^[a-z]{2}[0-9]{2}$/i.test(suffix)) {
+    throw new TypeError('Username suffix must contain two letters and two numbers')
+  }
+  const nameParts = name.trim().split(/\s+/)
+  const prefixParts = /^st\.?$/i.test(nameParts[0]) ? nameParts.slice(1) : nameParts.slice(0, 1)
+  const prefix = prefixParts.join('')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 80) || 'entity'
+  return `${prefix}${suffix.toLowerCase()}`
+}
+
+function resolveUsername(name, requestedUsername) {
+  if (!requestedUsername) return generateUsername(name)
+  const suffix = requestedUsername.slice(-4)
+  const generatedUsername = generateUsername(name, suffix)
+  if (generatedUsername !== requestedUsername) {
+    throw new AppError(422, 'INVALID_USERNAME', 'The generated username does not match the entity name')
+  }
+  return generatedUsername
+}
+
 function mapDatabaseError(error, resource) {
   if (error.code === 'ER_DUP_ENTRY') {
+    if ((error.sqlMessage || error.message).includes('uq_users_username')) {
+      return new AppError(409, 'USERNAME_TAKEN', 'The generated username is already in use')
+    }
     return new AppError(409, 'DUPLICATE_RESOURCE', `A ${definition(resource).singular} with those unique values already exists`)
   }
   if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
@@ -116,14 +149,21 @@ async function list(resource, user, filters) {
     values.push(filters.status)
   }
   if (filters.q) {
-    const searchColumns = resource === 'parishes' ? ['r.name', 'r.code'] : ['r.name']
+    const searchColumns = ['r.name']
     conditions.push(`(${searchColumns.map((column) => `${column} LIKE ?`).join(' OR ')})`)
     values.push(...searchColumns.map(() => `%${filters.q}%`))
   }
   const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM ${def.table} r WHERE ${conditions.join(' AND ')}`, values)
   const offset = (page - 1) * pageSize
+  const usernameColumn = resource === 'parishes' && user.role === 'owner'
+    ? ', (SELECT u.username FROM users u WHERE u.parish_id = r.id AND u.role = \'parish\' LIMIT 1) AS administrator_username'
+    : resource === 'centres' && user.role === 'parish'
+      ? ', (SELECT u.username FROM users u WHERE u.centre_id = r.id AND u.role = \'centre\' LIMIT 1) AS administrator_username'
+      : resource === 'groups' && user.role === 'centre'
+        ? ', (SELECT u.username FROM users u WHERE u.group_id = r.id AND u.role = \'group\' LIMIT 1) AS administrator_username'
+        : ''
   const [rows] = await pool.query(
-    `SELECT ${def.columns.map((column) => `r.${column}`).join(', ')}
+    `SELECT ${def.columns.map((column) => `r.${column}`).join(', ')}${usernameColumn}
      FROM ${def.table} r WHERE ${conditions.join(' AND ')}
      ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
     [...values, pageSize, offset],
@@ -162,16 +202,19 @@ async function create(resource, user, input) {
   try {
     await connection.beginTransaction()
     let row
+    const administratorUsername = ['parishes', 'centres', 'groups'].includes(resource)
+      ? resolveUsername(input.name, input.administrator.username)
+      : null
     if (resource === 'parishes') {
       const passwordHash = await bcrypt.hash(input.administrator.password, env.bcryptRounds)
       await connection.query(
-        'INSERT INTO parishes (id, name, code, location, priest) VALUES (?, ?, ?, ?, ?)',
-        [id, input.name, input.code, input.location || null, input.priest || null],
+        'INSERT INTO parishes (id, name, location, priest) VALUES (?, ?, ?, ?)',
+        [id, input.name, input.location || null, input.priest || null],
       )
       await connection.query(
-        `INSERT INTO users (id, parish_id, name, email, password_hash, role)
+        `INSERT INTO users (id, parish_id, name, username, password_hash, role)
          VALUES (?, ?, ?, ?, ?, 'parish')`,
-        [crypto.randomUUID(), id, input.administrator.name, input.administrator.email.toLowerCase(), passwordHash],
+        [crypto.randomUUID(), id, input.administrator.name, administratorUsername, passwordHash],
       )
       row = await findById(resource, id, user, connection)
     } else {
@@ -183,18 +226,18 @@ async function create(resource, user, input) {
         await connection.query('INSERT INTO centres (id, parish_id, name, location) VALUES (?, ?, ?, ?)', [id, parishId, input.name, input.location || null])
         const passwordHash = await bcrypt.hash(input.administrator.password, env.bcryptRounds)
         await connection.query(
-          `INSERT INTO users (id, parish_id, centre_id, name, email, password_hash, role)
+          `INSERT INTO users (id, parish_id, centre_id, name, username, password_hash, role)
            VALUES (?, ?, ?, ?, ?, ?, 'centre')`,
-          [crypto.randomUUID(), parishId, id, input.administrator.name, input.administrator.email.toLowerCase(), passwordHash],
+          [crypto.randomUUID(), parishId, id, input.administrator.name, administratorUsername, passwordHash],
         )
       } else if (resource === 'groups') {
         await assertParent(connection, 'centres', centreId, parishId)
         await connection.query('INSERT INTO `groups` (id, parish_id, centre_id, name) VALUES (?, ?, ?, ?)', [id, parishId, centreId, input.name])
         const passwordHash = await bcrypt.hash(input.administrator.password, env.bcryptRounds)
         await connection.query(
-          `INSERT INTO users (id, parish_id, centre_id, group_id, name, email, password_hash, role)
+          `INSERT INTO users (id, parish_id, centre_id, group_id, name, username, password_hash, role)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'group')`,
-          [crypto.randomUUID(), parishId, centreId, id, input.administrator.name, input.administrator.email.toLowerCase(), passwordHash],
+          [crypto.randomUUID(), parishId, centreId, id, input.administrator.name, administratorUsername, passwordHash],
         )
       } else {
         await assertParent(connection, 'groups', groupId, parishId, user.centre_id)
@@ -204,7 +247,9 @@ async function create(resource, user, input) {
     }
     await audit(connection, user, 'create', resource, id)
     await connection.commit()
-    return serialize(resource, row)
+    return administratorUsername
+      ? { ...serialize(resource, row), administratorUsername }
+      : serialize(resource, row)
   } catch (error) {
     await connection.rollback()
     throw mapDatabaseError(error, resource)
@@ -266,4 +311,4 @@ async function mutate(resource, id, user, action, input) {
   }
 }
 
-module.exports = { create, definition, findById, list, mutate, canManage, serialize }
+module.exports = { create, definition, findById, list, mutate, canManage, serialize, generateUsername }

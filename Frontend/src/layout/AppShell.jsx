@@ -80,7 +80,6 @@ export function AppShell() {
           <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}>
             <Menu size={21} />
           </button>
-          <div className="breadcrumb"><span>{session?.roleLabel || 'ERP Owner'}</span><ChevronDown size={15} /></div>
           <div className="topbar-actions">
             <button className="icon-button notification-button" aria-label="Notifications"><Bell size={20} /><span /></button>
             <div className="profile">

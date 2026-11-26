@@ -1,14 +1,12 @@
 CREATE TABLE IF NOT EXISTS parishes (
   id CHAR(36) NOT NULL,
   name VARCHAR(150) NOT NULL,
-  code VARCHAR(32) NOT NULL,
   location VARCHAR(150) NULL,
   priest VARCHAR(150) NULL,
   status ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_parishes_code (code)
+  PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS centres (

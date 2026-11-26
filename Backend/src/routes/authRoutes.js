@@ -60,17 +60,17 @@ async function writeAuditLog(connection, userId, parishId, action, entityId, met
 
 router.post('/login', loginRateLimit, async (request, response, next) => {
   try {
-    const email = requireString(request.body?.email, 'Email', 254).toLowerCase()
+    const username = requireString(request.body?.username, 'Username', 128)
     const password = requireString(request.body?.password, 'Password', 200)
     const [rows] = await pool.query(
-      `SELECT id, parish_id, centre_id, group_id, name, email, password_hash, role, status
-       FROM users WHERE email = ? LIMIT 1`,
-      [email],
+      `SELECT id, parish_id, centre_id, group_id, name, username, password_hash, role, status
+       FROM users WHERE username = ? LIMIT 1`,
+      [username],
     )
     const user = rows[0]
     const passwordMatches = user ? await bcrypt.compare(password, user.password_hash) : false
     if (!user || !passwordMatches || user.status !== 'active') {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password')
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid username or password')
     }
 
     await regenerateSession(request)

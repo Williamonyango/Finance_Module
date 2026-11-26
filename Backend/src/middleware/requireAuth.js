@@ -8,7 +8,7 @@ async function loadAuthenticatedUser(request, response, next) {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, parish_id, centre_id, group_id, name, email, role, status
+      `SELECT id, parish_id, centre_id, group_id, name, username, role, status
        FROM users WHERE id = ? LIMIT 1`,
       [request.session.userId],
     )

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowRight, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSession } from '../context/SessionContext'
 
 export function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { signIn } = useSession()
   const navigate = useNavigate()
@@ -13,7 +13,7 @@ export function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     try {
-      const account = await signIn(email, password)
+      const account = await signIn(username, password)
       toast.success(`Welcome, ${account.name}.`)
       navigate('/')
     } catch (error) {
@@ -37,7 +37,7 @@ export function LoginPage() {
           <h2>Sign in to your workspace</h2>
           <p className="form-intro">Sign in with your Finance ERP account to access your workspace.</p>
           <form onSubmit={handleSubmit} className="login-form">
-            <label htmlFor="email">Email address<div className="input-wrap"><Mail size={18} /><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></div></label>
+            <label htmlFor="username">Username<div className="input-wrap"><UserRound size={18} /><input id="username" type="text" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></div></label>
             <label htmlFor="password">Password<div className="input-wrap"><LockKeyhole size={18} /><input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></div></label>
             <button className="primary-button" type="submit">Continue to workspace <ArrowRight size={18} /></button>
           </form>
