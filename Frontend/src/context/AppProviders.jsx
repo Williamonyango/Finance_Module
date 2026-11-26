@@ -1,5 +1,5 @@
-import { SessionProvider } from './SessionContext'
+import { SessionProvider } from "./SessionContext";
 
 export function AppProviders({ children }) {
-  return <SessionProvider>{children}</SessionProvider>
+  return <SessionProvider>{children}</SessionProvider>;
 }

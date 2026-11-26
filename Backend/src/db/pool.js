@@ -1,5 +1,5 @@
-const mysql = require('mysql2/promise')
-const env = require('../config/env')
+const mysql = require("mysql2/promise");
+const env = require("../config/env");
 
 const pool = mysql.createPool({
   ...env.database,
@@ -8,15 +8,15 @@ const pool = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   dateStrings: true,
-})
+});
 
 async function checkDatabaseConnection() {
-  const connection = await pool.getConnection()
+  const connection = await pool.getConnection();
   try {
-    await connection.query('SELECT 1')
+    await connection.query("SELECT 1");
   } finally {
-    connection.release()
+    connection.release();
   }
 }
 
-module.exports = { pool, checkDatabaseConnection }
+module.exports = { pool, checkDatabaseConnection };

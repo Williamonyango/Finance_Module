@@ -8,7 +8,7 @@ function serializeUser(user) {
     parishId: user.parish_id || null,
     centreId: user.centre_id || null,
     groupId: user.group_id || null,
-  }
+  };
 }
 
-module.exports = { serializeUser }
+module.exports = { serializeUser };

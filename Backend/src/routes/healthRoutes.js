@@ -1,29 +1,35 @@
-const express = require('express')
-const { checkDatabaseConnection } = require('../db/pool')
-const { AppError } = require('../errors/AppError')
+const express = require("express");
+const { checkDatabaseConnection } = require("../db/pool");
+const { AppError } = require("../errors/AppError");
 
-const router = express.Router()
+const router = express.Router();
 
-router.get('/', async (request, response, next) => {
+router.get("/", async (request, response, next) => {
   try {
-    await checkDatabaseConnection()
+    await checkDatabaseConnection();
     response.json({
       success: true,
       data: {
-        status: 'ok',
-        database: 'connected',
+        status: "ok",
+        database: "connected",
         environment: request.app.locals.environment,
       },
-    })
+    });
   } catch (error) {
     request.app.locals.logger({
-      message: 'Database health check failed',
+      message: "Database health check failed",
       code: error.code,
       errno: error.errno,
       sqlState: error.sqlState,
-    })
-    next(new AppError(503, 'DATABASE_UNAVAILABLE', 'Database connectivity check failed'))
+    });
+    next(
+      new AppError(
+        503,
+        "DATABASE_UNAVAILABLE",
+        "Database connectivity check failed",
+      ),
+    );
   }
-})
+});
 
-module.exports = { healthRoutes: router }
+module.exports = { healthRoutes: router };

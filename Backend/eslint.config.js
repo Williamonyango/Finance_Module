@@ -1,25 +1,25 @@
-const eslint = require('@eslint/js')
+const eslint = require("@eslint/js");
 
 module.exports = [
   eslint.configs.recommended,
   {
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'commonjs',
+      sourceType: "commonjs",
       globals: {
-        console: 'readonly',
-        process: 'readonly',
-        require: 'readonly',
-        module: 'readonly',
-        __dirname: 'readonly',
-        Buffer: 'readonly',
+        console: "readonly",
+        process: "readonly",
+        require: "readonly",
+        module: "readonly",
+        __dirname: "readonly",
+        Buffer: "readonly",
       },
     },
     rules: {
-      'no-console': 'off',
+      "no-console": "off",
     },
   },
   {
-    ignores: ['node_modules/**'],
+    ignores: ["node_modules/**"],
   },
-]
+];
